@@ -1,0 +1,20 @@
+name:                hakflow
+version:             0.0
+synopsis:            <Project description>
+description:         <Project description>
+category:            System
+license:             BSD3
+license-file:        LICENSE
+author:              Author Name
+maintainer:          user@email.address
+build-type:          Simple
+cabal-version:       >= 1.6
+
+
+Library
+  build-depends:       base
+  exposed-modules:     Makeflow.Monad,
+                       Makeflow.Commands,
+                       Makeflow.Workfow,
+                       Makeflow.Util
+  ghc-options:
