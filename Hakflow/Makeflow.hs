@@ -1,13 +1,15 @@
 {-# LANGUAGE
   EmptyDataDecls,
   FlexibleInstances,
+  GADTs,
   GeneralizedNewtypeDeriving,
-  TypeFamilies
+  MultiParamTypeClasses,
+  TypeFamilies,
+  TypeSynonymInstances
   #-}
 
 module Hakflow.Makeflow where
 
-import Data.Monoid
 import Text.Printf
 import Data.List (intercalate)
 import qualified Data.Sequence as Seq
@@ -39,7 +41,8 @@ data Command = Cmd Executable [Arg] Redirection deriving Show
 
 newtype Executable = Exec File deriving Show
 
-data Arg = Simple String | Arg File deriving Show
+data Arg = Flag String | Arg File deriving Show
+
 
 data OutBuffer = StdErr
                | StdOut
@@ -76,7 +79,7 @@ instance FilesOut Redirection where
     filesout (Split r1 r2) = filesout r1 ++ filesout r2
 
 instance FilesIn Arg where
-    filesin (Simple _) = []
+    filesin (Flag _) = []
     filesin (Arg f) = [f]
 
 instance FilesIn [Arg] where
@@ -91,11 +94,17 @@ instance FilesIn Command where
 instance FilesOut Command where
     filesout (Cmd _ _ redir) = filesout redir
 
-instance MFRule Rule where
-    rule = id
+instance Eval Rule where
+    eval = id
 
-instance MFRule Command where
-    rule cmd = Rule (Output (filesout cmd)) (Input (filesin cmd)) [cmd]
+instance Eval Command where
+    eval cmd = Rule (Output (filesout cmd)) (Input (filesin cmd)) [cmd]
+
+instance FilesIn Rule where
+    filesin (Rule _ input _) = filesin input
+
+instance FilesOut Rule where
+    filesout (Rule out _ _) = filesout out
 
 
 
@@ -121,14 +130,12 @@ writeMakeflow mf p opts = undefined
 class MF a where
     makeflow :: a -> Makeflow
 
-class MFRule a where
-    rule :: a -> Rule
-    {-# INLINE rule #-}
+class Eval a where
+    eval :: a -> Rule
 
 
 class Emerge a where
     emerge :: a -> String
-    {-# INLINE emerge #-}
 
 instance Emerge File where
     emerge = filepath
@@ -161,7 +168,7 @@ instance Emerge Executable where
     emerge = emerge_executable
 
 emerge_arg (Arg a) = filepath a
-emerge_arg (Simple s) = s
+emerge_arg (Flag s) = s
 instance Emerge Arg where
     emerge = emerge_arg
 
@@ -175,3 +182,16 @@ emerge_redirection (Combine m p) = printf "%s %s 2>&1" (mode m) (emerge p)
 emerge_redirection (Split r1 r2) = emerge_redirection r1 ++ " " ++ emerge_redirection r2
 instance Emerge Redirection where
     emerge = emerge_redirection
+
+
+
+data Compilation a b = End a | Step b
+
+class Compile a b where
+    type Step :: *
+    compile :: a -> Compilation b Step
+
+
+-- instance Compile String Arg where
+--     type Step = [Arg]
+--     compile str = 
