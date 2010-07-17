@@ -1,11 +1,14 @@
 {-# LANGUAGE
   EmptyDataDecls,
   FlexibleInstances,
+  FlexibleContexts,
   GADTs,
   GeneralizedNewtypeDeriving,
   MultiParamTypeClasses,
   TypeFamilies,
-  TypeSynonymInstances
+  TypeSynonymInstances,
+  UndecidableInstances,
+  NoMonomorphismRestriction
   #-}
 
 module Hakflow.Makeflow where
@@ -14,41 +17,59 @@ import Text.Printf
 import Data.List (intercalate)
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
+
+
+newtype Tagged v t = Tag {unTag :: v} deriving Show
+
+retag :: Tagged v t1 -> Tagged v t2
+retag = Tag . unTag
 
 
 class Magma a where
     magma :: a -> a -> a
 
-instance Magma [a] where
-    magma = (++)
-
-data Rule = Rule Output Input [Command] deriving Show
-
-instance Magma Rule where
-    magma (Rule o1 i1 c1) (Rule o2 i2 c2) = Rule (magma o1 o2) (magma i1 i2) (magma c1 c2)
-
-newtype Output = Output [File] deriving (Show)
-instance Magma Output where
-    magma (Output o1) (Output o2) = Output $ magma o1 o2
 
 newtype Input = Input [File] deriving (Show)
+newtype Output = Output [File] deriving (Show)
+
 instance Magma Input where
-    magma (Input i1) (Input i2) = Input $ magma i1 i2
+    magma (Input i1) (Input i2) = Input (i1 ++ i2)
 
-newtype File = File {filepath :: FilePath} deriving Show
+instance Magma Output where
+    magma (Output o1) (Output o2) = Output (o1 ++ o2)
 
-data Command = Cmd Executable [Arg] Redirection deriving Show
+instance Magma [a] where magma = (++)
+
+
+data Rule = Rule Output Input [Cmd] deriving Show
+
+instance Magma Rule where
+    magma (Rule o1 i1 c1) (Rule o2 i2 c2) = Rule (o1 `magma` o2) (i1 `magma` i2) (c1 `magma` c2)
+
+
+data Command a = Cmd Executable [Parameter a] Redirection deriving Show
+
+data Cmd where
+    C ::  (FilesIn (Command a), FilesOut (Command a)) => Command a -> Cmd
+
+instance Show Cmd where
+    show (C c) = "C (" ++ show c ++ ")"
 
 newtype Executable = Exec File deriving Show
 
-data Arg = Flag String | Arg File deriving Show
+data Param = Para String
+           | Flagged String Param
+                 deriving Show
+type Parameter = Tagged Param
 
--- Phantom type: used to 'tag' parameters for type class instances (ie: FileIn/Out, Compile)
-data Parameter a = Param {param :: String}
-                 | FileParam {fileParam :: File}
-                 | FlaggedParam {flag :: String, fparam :: Parameter a}
-                   deriving Show
 
+param = Tag . Para
+
+flagged s = Tag . Flagged s
+
+
+newtype File = File {filepath :: FilePath} deriving Show
 
 data OutBuffer = StdErr
                | StdOut
@@ -60,18 +81,24 @@ data OutputMode = Write | Append
 data Redirection = Redir OutputMode OutBuffer File
                  | Combine OutputMode File
                  | Split Redirection Redirection
+                 | Out
                    deriving Show
 
 
-cmd1 = Cmd (Exec (File "exe1")) [] (Redir Write StdOut (File "out1"))
-cmd2 = Cmd (Exec (File "exe2")) [Arg (File "foo")] (Redir Write StdOut (File "out2"))
 
+
+class Eval a where
+    eval :: a -> Rule
 
 class FilesIn a where
     filesin :: a -> [File]
 
 class FilesOut a where
     filesout :: a -> [File]
+
+
+
+
 
 instance FilesOut Output where
     filesout (Output fs) = fs
@@ -83,28 +110,17 @@ instance FilesOut Redirection where
     filesout (Redir _ _ f) = [f]
     filesout (Combine _ f) = [f]
     filesout (Split r1 r2) = filesout r1 ++ filesout r2
-
-instance FilesIn Arg where
-    filesin (Flag _) = []
-    filesin (Arg f) = [f]
-
-instance FilesIn [Arg] where
-    filesin = concatMap filesin
+    filesout _ = []
 
 instance FilesIn Executable where
     filesin (Exec f) = [f]
 
-instance FilesIn Command where
-    filesin (Cmd exec args _) = filesin exec ++ filesin args
-
-instance FilesOut Command where
-    filesout (Cmd _ _ redir) = filesout redir
 
 instance Eval Rule where
     eval = id
 
-instance Eval Command where
-    eval cmd = Rule (Output (filesout cmd)) (Input (filesin cmd)) [cmd]
+instance (FilesIn (Command a), FilesOut (Command a)) => Eval (Command a) where
+        eval cmd@(Cmd exe _ redir) = Rule (Output (filesout cmd `magma` filesout redir)) (Input (filesin cmd)) [C cmd]
 
 instance FilesIn Rule where
     filesin (Rule _ input _) = filesin input
@@ -115,13 +131,42 @@ instance FilesOut Rule where
 
 
 
+data A
+data B
+
+instance FilesIn (Command A) where filesin = const []
+instance FilesOut (Command A) where filesout = const []
+
+instance FilesIn (Command B) where filesin = const []
+instance FilesOut (Command B) where filesout = const []
 
 
-buffer StdOut = "2"
-buffer StdErr = "1"
+cmd1 :: Command A
+cmd1 = Cmd (Exec $ File "/bin/env") [] Out
+
+cmd2 :: Command B
+cmd2 = Cmd (Exec $ File "/bin/echo") [param "hello world"] (Redir Write StdOut $ File "/tmp/out")
+
+r1 = eval cmd1
+r2 = eval cmd2
+
+r3 = r1 `magma` r2
+
+cmd3 :: Command A
+cmd3 = Cmd (Exec $ File "/usr/bin/python") [param "/tmp/hello.py"] (Redir Write StdOut $ File "/tmp/out")
+
+
+
+
+
+
+
+
+buffer StdOut = T.pack "2"
+buffer StdErr = T.pack "1"
 {-# INLINE buffer #-}
-mode Write = ">"
-mode Append = ">>"
+mode Write = T.pack ">"
+mode Append = T.pack ">>"
 {-# INLINE mode #-}
 
 
@@ -136,68 +181,82 @@ writeMakeflow mf p opts = undefined
 class MF a where
     makeflow :: a -> Makeflow
 
-class Eval a where
-    eval :: a -> Rule
+
 
 
 class Emerge a where
-    emerge :: a -> String
+    emerge :: a -> T.Text
 
 instance Emerge File where
-    emerge = filepath
+    emerge = T.pack . filepath
 
-emerge_rule :: Rule -> String
+emerge_rule :: Rule -> T.Text
 emerge_rule (Rule (Output outs) (Input ins) cmds) =
-    printf "%s : %s\n\t%s"
-               (intercalate " " . map filepath $ outs)
-               (intercalate " " . map filepath $ ins)
-               (emerge cmds)
+    outfs `T.append` colon `T.append` infs `T.append` newline_tab `T.append` cmd
+        where files = T.intercalate (T.pack " ") . map (T.pack . filepath)
+              outfs = files outs
+              infs  = files ins
+              cmd = emerge cmds
+
+              colon = T.pack " : "
+              newline_tab = T.pack "\n\t"
+
 instance Emerge Rule where
     emerge = emerge_rule
 
 
-emerge_command_list = intercalate " ; " . map emerge
-instance Emerge [Command] where
-    emerge = emerge_command_list
 
 emerge_command (Cmd exe args redir) =
-    printf "%s %s %s"
-               (emerge exe)
-               (emerge args)
-               (emerge redir)
-instance Emerge Command where
+    emerge exe `T.append` s `T.append` emerge args `T.append` s `T.append` emerge redir
+        where s = T.pack " "
+
+instance Emerge (Command a) where
     emerge = emerge_command
 
 
-emerge_executable (Exec path) = filepath path
+instance Emerge Cmd where
+    emerge (C c) = emerge c
+
+
+instance Emerge [Cmd] where
+    emerge = T.intercalate (T.pack " ; ") . map emerge
+
+
+
+emerge_executable (Exec path) = T.pack $ filepath path
+
 instance Emerge Executable where
     emerge = emerge_executable
 
-emerge_arg (Arg a) = filepath a
-emerge_arg (Flag s) = s
-instance Emerge Arg where
-    emerge = emerge_arg
+emerge_param (Para s) = T.pack s
+emerge_param (Flagged s p) = T.pack s `T.append` T.pack " " `T.append` emerge_param p
 
-emerge_args = intercalate " " . map emerge
-instance Emerge [Arg] where
-    emerge = emerge_args
+instance Emerge (Parameter a) where
+    emerge = emerge_param . unTag
+
+emerge_parameter_list = T.intercalate (T.pack " ") . map emerge
+
+instance Emerge [Parameter a] where
+    emerge = emerge_parameter_list
 
 
-emerge_redirection (Redir m b p) = printf "%s%s %s" (buffer b) (mode m) (emerge p)
-emerge_redirection (Combine m p) = printf "%s %s 2>&1" (mode m) (emerge p)
-emerge_redirection (Split r1 r2) = emerge_redirection r1 ++ " " ++ emerge_redirection r2
+emerge_redirection (Redir m b p) = buffer b `T.append` mode m `T.append` T.pack " " `T.append` emerge p
+emerge_redirection (Combine m p) = mode m `T.append` T.pack " " `T.append` emerge p `T.append` T.pack " 2>&1"
+emerge_redirection (Split r1 r2) = emerge_redirection r1 `T.append` T.pack " " `T.append` emerge_redirection r2
+emerge_redirection _ = T.empty
+
 instance Emerge Redirection where
     emerge = emerge_redirection
 
 
 
-data Compilation a b = End a | Step b
+-- data Compilation a b = End a | Step b
 
-class Compile a b where
-    type Step :: *
-    compile :: a -> Compilation b Step
+-- class Compile a b where
+--     type Step :: *
+--     compile :: a -> Compilation b Step
 
 
--- instance Compile String Arg where
---     type Step = [Arg]
---     compile str = 
+-- -- instance Compile String Arg where
+-- --     type Step = [Arg]
+-- --     compile str = 
