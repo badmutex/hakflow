@@ -43,6 +43,12 @@ newtype Executable = Exec File deriving Show
 
 data Arg = Flag String | Arg File deriving Show
 
+-- Phantom type: used to 'tag' parameters for type class instances (ie: FileIn/Out, Compile)
+data Parameter a = Param {param :: String}
+                 | FileParam {fileParam :: File}
+                 | FlaggedParam {flag :: String, fparam :: Parameter a}
+                   deriving Show
+
 
 data OutBuffer = StdErr
                | StdOut
