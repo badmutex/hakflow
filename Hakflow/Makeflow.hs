@@ -15,7 +15,7 @@ module Hakflow.Makeflow where
 
 import Text.Printf
 import Data.List (intercalate)
-import qualified Data.Sequence as Seq
+import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -40,6 +40,7 @@ instance Magma Output where
     magma (Output o1) (Output o2) = Output (o1 ++ o2)
 
 instance Magma [a] where magma = (++)
+instance Magma (V.Vector a) where magma = (V.++)
 
 
 data Rule = Rule Output Input [Cmd] deriving Show
@@ -170,7 +171,7 @@ mode Append = T.pack ">>"
 {-# INLINE mode #-}
 
 
-type Makeflow = Seq.Seq Rule
+type Makeflow = V.Vector Rule
 
 data Opts = Opts
 
