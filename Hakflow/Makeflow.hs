@@ -51,6 +51,12 @@ instance Magma Rule where
 
 data Command a = Cmd Executable [Parameter a] Redirection deriving Show
 
+redirection :: Command a -> Redirection
+redirection (Cmd _ _ r) = r
+
+redirect :: Command a -> Redirection -> Command a
+redirect (Cmd e ps _) r = Cmd e ps r
+
 data Cmd where
     C ::  (FilesIn (Command a), FilesOut (Command a)) => Command a -> Cmd
 
@@ -65,25 +71,26 @@ data Param = Para String
 type Parameter = Tagged Param
 
 
+para (Para s) = s
 param = Tag . Para
 
 flagged s = Tag . Flagged s
 
 
-newtype File = File {filepath :: FilePath} deriving Show
+newtype File = File {filepath :: FilePath} deriving (Eq, Show)
 
 data OutBuffer = StdErr
                | StdOut
-                 deriving Show
+                 deriving (Eq, Show)
 
 data OutputMode = Write | Append
-                deriving Show
+                deriving (Eq, Show)
 
 data Redirection = Redir OutputMode OutBuffer File
                  | Combine OutputMode File
                  | Split Redirection Redirection
                  | Out
-                   deriving Show
+                   deriving (Eq, Show)
 
 
 
@@ -261,3 +268,8 @@ instance Emerge Redirection where
 -- -- instance Compile String Arg where
 -- --     type Step = [Arg]
 -- --     compile str = 
+
+
+
+empty :: Makeflow
+empty = V.empty
