@@ -24,7 +24,10 @@ import Control.Applicative ((<$>))
 import Data.Default
 import Data.Word
 import System.IO.Unsafe
+import Text.Printf
 
+-- for testing
+import Debug.Trace
 
 
 newtype Log = Log {unLog :: V.Vector String} deriving Show
@@ -38,7 +41,7 @@ newtype Hak a = Hak {
       runHak :: RWST Opts Log HakState IO a
     } deriving (Functor, Monad, MonadWriter Log, MonadReader Opts, MonadState HakState, MonadIO)
 
-run = RWS.runRWST
+run = RWS.runRWST . runHak
 
 
 data HakState = HS {
@@ -47,7 +50,7 @@ data HakState = HS {
     , _workflow :: !Makeflow
     , _resultPrefix :: String
     , _resultSuffix :: String
-    }
+    } deriving Show
 
 $(mkLabels [''HakState])
 counter :: HakState :-> Integer
@@ -88,7 +91,7 @@ instance Default HakState where
 
 
 inc :: Num a => HakState :-> a -> Hak ()
-inc = flip change (+1)
+inc = trace "calling inc" flip change (+1)
 
 dec :: Num a => HakState :-> a -> Hak ()
 dec = flip change ((-) 1)
@@ -102,4 +105,6 @@ result = do
   pref <- L.get resultPrefix <$> RWS.get
   suff <- L.get resultSuffix <$> RWS.get
   inc counter
-  return . File $ pref ++ show c ++ "." ++ suff
+  digits <- L.get counterDigits <$> ask
+  let fmt = "%0" ++ show digits ++ "X"
+  return . File $ pref ++ printf fmt c ++ "." ++ suff

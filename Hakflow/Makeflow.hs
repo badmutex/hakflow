@@ -5,7 +5,9 @@
   GADTs,
   GeneralizedNewtypeDeriving,
   MultiParamTypeClasses,
+  TemplateHaskell,
   TypeFamilies,
+  TypeOperators,
   TypeSynonymInstances,
   UndecidableInstances,
   NoMonomorphismRestriction
@@ -14,10 +16,13 @@
 module Hakflow.Makeflow where
 
 import Text.Printf
-import Data.List (intercalate)
+import Data.List (intercalate,intersect,nub)
+import Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Data.Record.Label
+import Data.Default
 
 
 newtype Tagged v t = Tag {unTag :: v} deriving Show
@@ -34,13 +39,16 @@ newtype Input = Input [File] deriving (Show)
 newtype Output = Output [File] deriving (Show)
 
 instance Magma Input where
-    magma (Input i1) (Input i2) = Input (i1 ++ i2)
+    magma (Input i1) (Input i2) = Input (nub $ i1 ++ i2)
 
 instance Magma Output where
-    magma (Output o1) (Output o2) = Output (o1 ++ o2)
-
-instance Magma [a] where magma = (++)
-instance Magma (V.Vector a) where magma = (V.++)
+    magma (Output o1) (Output o2) = let outs = o1 ++ o2
+                                        l1 = length outs
+                                        l2 = length $ nub outs
+                                    in if l1 == l2
+                                       then Output outs
+                                       else error $ "Magma Output: cannot join different outputs to the same file(s): " ++
+                                                (show $ intersect o1 o2)
 
 
 data Rule = Rule Output Input [Cmd] deriving Show
@@ -60,6 +68,9 @@ redirect (Cmd e ps _) r = Cmd e ps r
 data Cmd where
     C ::  (FilesIn (Command a), FilesOut (Command a)) => Command a -> Cmd
 
+instance Magma [Cmd] where magma = (++)
+
+
 instance Show Cmd where
     show (C c) = "C (" ++ show c ++ ")"
 
@@ -78,6 +89,8 @@ flagged s = Tag . Flagged s
 
 
 newtype File = File {filepath :: FilePath} deriving (Eq, Show)
+
+instance Magma [File] where magma xs ys = nub $ xs ++ ys
 
 data OutBuffer = StdErr
                | StdOut
@@ -117,7 +130,7 @@ instance FilesIn Input where
 instance FilesOut Redirection where
     filesout (Redir _ _ f) = [f]
     filesout (Combine _ f) = [f]
-    filesout (Split r1 r2) = filesout r1 ++ filesout r2
+    filesout (Split r1 r2) = filesout r1 `magma` filesout r2
     filesout _ = []
 
 instance FilesIn Executable where
@@ -180,7 +193,14 @@ mode Append = T.pack ">>"
 
 type Makeflow = V.Vector Rule
 
-data Opts = Opts
+data Opts = Opts {
+      _counterDigits :: !Int
+    }
+$(mkLabels [''Opts])
+counterDigits :: Opts :-> Int
+
+instance Default Opts where
+    def = Opts { _counterDigits = 10 }
 
 writeMakeflow :: Makeflow -> FilePath -> Opts -> IO ()
 writeMakeflow mf p opts = undefined
@@ -189,6 +209,15 @@ writeMakeflow mf p opts = undefined
 class MF a where
     makeflow :: a -> Makeflow
 
+instance MF Rule where
+    makeflow = V.singleton
+
+instance MF (Vector Rule) where
+    makeflow = id
+
+instance Emerge Makeflow where
+    emerge = V.foldl' join T.empty . V.map emerge
+        where join txt rule = txt `T.append` rule `T.append` T.pack "\n"
 
 
 
