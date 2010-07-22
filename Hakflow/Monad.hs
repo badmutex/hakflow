@@ -91,7 +91,7 @@ instance Default HakState where
 
 
 inc :: Num a => HakState :-> a -> Hak ()
-inc = trace "calling inc" flip change (+1)
+inc = flip change (+1)
 
 dec :: Num a => HakState :-> a -> Hak ()
 dec = flip change ((-) 1)
