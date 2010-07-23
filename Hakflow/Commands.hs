@@ -40,8 +40,8 @@ cat cfg opts = do
                , redirect = r }
 
 
--- cmd = let files = V.fromList $ map param ["foo","bar"]
---           prog  = cat def files
---       in do r@(c,s,l) <- run prog def {_counterDigits=2} def
---             return . emerge . makeflow $ eval c
+cmd' = let files = map (Param . FileOutArg . File) ["foo","bar"]
+           prog  = eval =<< cat def files
+       in do r@(c,s,l) <- run prog def {_counterDigits=2} def
+             T.putStrLn . emerge $ c
 

@@ -33,7 +33,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Foldable
 
-import Prelude hiding (foldl,foldr)
+import Prelude hiding (foldl,foldr,foldl1,foldr1)
 
 data Rule = Rule { outputs :: Set File
                  , inputs  :: Set File
@@ -140,12 +140,12 @@ emergeCommand c = let exe = emergeExecutable . exec $ c
 
 instance Emerge Rule where
     emerge r = let paths f = S.map (pack . path) (f r)
-                   spaces = foldl' (\txts txt -> txts `T.append` txt `T.append` pack " ") T.empty
-                   outs = spaces (paths outputs) `T.append` pack " " `T.append` main
+                   spaces = foldr' (\txts txt -> txts `T.append` pack " " `T.append` txt) T.empty
+                   outs = main `T.append` pack " " `T.append` spaces (paths outputs)
                    ins  = spaces (paths inputs)
-                   main = pack $ if isJust (mainOut  r)
-                                 then path . fromJust $ mainOut r
-                                 else ""
+                   main = if isJust (mainOut  r)
+                          then T.pack . path . fromJust $ mainOut r
+                          else T.empty
                    cmds = foldl' (\cs c -> cs `T.append` c `T.append` pack ";" ) T.empty $ S.map emergeCommand (commands r)
-               in outs`T.append` pack " : " `T.append` ins `T.append` pack "\n\t" `T.append` cmds
+               in outs`T.append` pack ": " `T.append` ins `T.append` pack "\n\t" `T.append` cmds
 
