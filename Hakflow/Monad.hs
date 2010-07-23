@@ -102,10 +102,12 @@ cmd = Cmd
 
 
 instance Eval Hak Command where
-    eval cmd = do res <- result
-                  let ins = (filesin $ exec cmd) `S.union` (filesin $ params cmd) `S.union` depends cmd
+    eval cmd = do let ins = (filesin $ exec cmd) `S.union` (filesin $ params cmd) `S.union` depends cmd
                       outs = filesout $ params cmd
+                  res <- if isJust (redirection cmd)
+                         then return . fromJust . redirection $ cmd
+                         else (Redir StdOut Write) <$> result
                   return Rule { outputs = outs
                               , inputs = ins
-                              , mainOut = Just res
-                              , commands = V.singleton cmd }
+                              , mainOut = Just $ redirectionFile res
+                              , commands = V.singleton cmd {redirection=Just res} }

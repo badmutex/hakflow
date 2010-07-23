@@ -35,7 +35,8 @@ cat cfg opts = do
       ps  = opts
   return $ Cmd { exec = exe
                , params = ps
-               , depends = S.empty }
+               , depends = S.empty
+               , redirection = Nothing }
 
 
 cmd' = let files = map (Param . FileOutArg . File) ["foo","bar"]

@@ -48,17 +48,22 @@ executable = Exe . File
 data Command = Cmd { exec :: Executable
                    , params :: [Parameter]
                    , depends :: Set File
+                   , redirection :: Maybe Redirection
                    } deriving (Eq, Ord, Show)
 
 
 data ParamType = TextArg Text | FileInArg File | FileOutArg File deriving (Eq, Ord, Show)
 data Parameter = Param ParamType | Flagged Text ParamType deriving (Eq, Ord, Show)
 
-data Buffer = StdOut | StdIn deriving (Eq, Ord, Show)
+data Buffer = StdOut | StdErr deriving (Eq, Ord, Show)
 data Mode = Write | Append deriving (Eq, Ord, Show)
 data Redirection = Redir Buffer Mode File
                  | Combine Mode File
+                 | Out
                    deriving (Eq, Ord, Show)
+redirectionFile :: Redirection -> File
+redirectionFile (Redir _ _ f) = f
+redirectionFile (Combine _ f) = f
 
 
 
@@ -135,7 +140,23 @@ emergeParameter (Flagged t pt) = t `T.append` pack " " `T.append` emergeParamTyp
 
 emergeCommand c = let exe = emergeExecutable . exec $ c
                       ps  = foldl' (\t p -> t `T.append` pack " " `T.append` emergeParameter p) T.empty (params c)
-                  in exe `T.append` ps
+                      r   = emergeRedirection $ fromMaybe Out (redirection c)
+                  in exe `T.append` ps `T.append` pack " " `T.append` r
+
+
+emergeBuffer StdOut = pack "1"
+emergeBuffer StdErr = pack "2"
+emergeMode Write = pack ">"
+emergeMode Append = pack ">>"
+emergeRedirection (Redir b m f) = emergeBuffer b `T.append`
+                                  emergeMode m   `T.append`
+                                  pack (path f)
+emergeRedirection (Combine m f) = pack "2>&1"    `T.append`
+                                  pack " "       `T.append`
+                                  emergeMode m   `T.append`
+                                  pack (path f)
+emergeRedirection Out = T.empty
+
 
 instance Emerge Rule where
     emerge r = let paths f = S.map (pack . path) (f r)

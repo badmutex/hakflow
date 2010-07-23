@@ -16,6 +16,8 @@ import qualified Data.Set as S
 import qualified Data.Vector as V
 import Data.Maybe
 import Data.Default
+import Data.Foldable
+import Prelude hiding (foldl,foldl1,foldr,foldr1,mapM_)
 
 -- debugging
 import qualified Data.Text as T
@@ -44,9 +46,11 @@ test = let progs = do
                                      [Param . FileInArg . File $ "input"] ++
                                      [Param . FileOutArg . File $ "output"]
                           , depends = S.empty
+                          , redirection = Nothing
                           }
                  c2 = c1 { exec = executable "bar" }
-             [r1,r2] <- mapM eval [c1,c2]
-             r3 <- magma r1 r2
+                 c3 = c1 { exec = executable "bang" }
+             rs <- mapM eval [c1,c2,c3]
+             r3 <- foldlM magma (head rs) (tail rs)
              return r3
        in progs
