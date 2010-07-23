@@ -25,7 +25,7 @@ import Data.Record.Label
 import Data.Default
 
 
-newtype Tagged v t = Tag {unTag :: v} deriving Show
+newtype Tagged v t = Tag {unTag :: v} deriving (Eq, Show)
 
 retag :: Tagged v t1 -> Tagged v t2
 retag = Tag . unTag
@@ -35,8 +35,8 @@ class Magma a where
     magma :: a -> a -> a
 
 
-newtype Input = Input [File] deriving (Show)
-newtype Output = Output [File] deriving (Show)
+newtype Input = Input [File] deriving (Eq, Show)
+newtype Output = Output [File] deriving (Eq, Show)
 
 instance Magma Input where
     magma (Input i1) (Input i2) = Input (nub $ i1 ++ i2)
@@ -51,13 +51,23 @@ instance Magma Output where
                                                 (show $ intersect o1 o2)
 
 
-data Rule = Rule Output Input [Cmd] deriving Show
+data Rule = Rule Output Input [Cmd] deriving (Show)
+
+
+
+-- instance Eq Rule where
+--     r1@(Rule o1 i1 c1) == r2@(Rule o2 i2 c2) =
+--         if o1 == o2 && i1 == i2 && c1 == c2
+--         then True
+--         else False
+
+
 
 instance Magma Rule where
-    magma (Rule o1 i1 c1) (Rule o2 i2 c2) = Rule (o1 `magma` o2) (i1 `magma` i2) (c1 `magma` c2)
+    magma r1@(Rule o1 i1 c1) r2@(Rule o2 i2 c2) = Rule (o1 `magma` o2) (i1 `magma` i2) (c1 `magma` c2)
 
 
-data Command a = Cmd Executable [Parameter a] Redirection deriving Show
+data Command a = Cmd Executable [Parameter a] Redirection deriving (Eq, Show)
 
 redirection :: Command a -> Redirection
 redirection (Cmd _ _ r) = r
@@ -66,7 +76,8 @@ redirect :: Command a -> Redirection -> Command a
 redirect (Cmd e ps _) r = Cmd e ps r
 
 data Cmd where
-    C ::  (FilesIn (Command a), FilesOut (Command a)) => Command a -> Cmd
+    C ::  (Eq (Command a), FilesIn (Command a), FilesOut (Command a)) => Command a -> Cmd
+
 
 instance Magma [Cmd] where magma = (++)
 
@@ -74,11 +85,11 @@ instance Magma [Cmd] where magma = (++)
 instance Show Cmd where
     show (C c) = "C (" ++ show c ++ ")"
 
-newtype Executable = Exec File deriving Show
+newtype Executable = Exec File deriving (Eq, Show)
 
 data Param = Para String
            | Flagged String Param
-                 deriving Show
+             deriving (Eq, Show)
 type Parameter = Tagged Param
 
 
