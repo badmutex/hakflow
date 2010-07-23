@@ -12,11 +12,14 @@
 module Hakflow.Monad where
 
 import Hakflow.Makeflow
+import Hakflow.Util
 
 import Data.Maybe
-import System.Directory
 import "monads-fd" Control.Monad.RWS.Strict as RWS
 import qualified Data.Vector as V
+import Data.Text (Text,pack)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import System.Random.Mersenne (MTGen)
 import qualified System.Random.Mersenne as Rand
 import Data.Record.Label as L
@@ -25,6 +28,9 @@ import Data.Default
 import Data.Word
 import System.IO.Unsafe
 import Text.Printf
+import "monads-fd" Control.Monad.Identity
+import Data.Set (Set)
+import qualified Data.Set as S
 
 -- for testing
 import Debug.Trace
@@ -38,24 +44,22 @@ instance Monoid Log where
 
 
 newtype Hak a = Hak {
-      runHak :: RWST Opts Log HakState IO a
-    } deriving (Functor, Monad, MonadWriter Log, MonadReader Opts, MonadState HakState, MonadIO)
+      runHak :: RWST MakeflowOpts Log HakState IO a
+    } deriving (Functor, Monad, MonadWriter Log, MonadReader MakeflowOpts, MonadState HakState, MonadIO)
 
 run = RWS.runRWST . runHak
 
 
 data HakState = HS {
       _counter :: !Integer
-    -- , _randGen :: !MTGen
-    , _workflow :: !Makeflow
+    , _workflow :: !Flow
     , _resultPrefix :: String
     , _resultSuffix :: String
     } deriving Show
 
 $(mkLabels [''HakState])
 counter :: HakState :-> Integer
--- randGen :: HakState :-> MTGen
-workflow :: HakState :-> Makeflow
+workflow :: HakState :-> Flow
 resultPrefix :: HakState :-> String
 resultSuffix :: HakState :-> String
 
@@ -63,32 +67,10 @@ resultSuffix :: HakState :-> String
 instance Default HakState where
     def = HS {
             _counter = 0
-          -- , _randGen = unsafePerformIO $ Rand.newMTGen (Just 42)
-          , _workflow = empty
-          , _resultPrefix = "result"
+          , _workflow = V.empty
+          , _resultPrefix = "result_"
           , _resultSuffix = "txt"
           }
-
-
--- random :: Rand.MTRandom a => Hak a
--- random = do
---   s  <- RWS.get
---   let g = L.get randGen s
---   r  <- liftIO $ Rand.random g
---   g' <- liftIO $ Rand.getStdGen
---   let s' = L.set randGen g' s
---   put s'
---   return r
--- {-# INLINE random #-}
-
--- randomIO :: Rand.MTRandom a => Hak a
--- randomIO = do
---   r <- liftIO $ Rand.randomIO
---   g <- liftIO $ Rand.getStdGen
---   put =<< L.set randGen g <$> RWS.get
---   return r
--- {-# INLINE randomIO #-}
-
 
 inc :: Num a => HakState :-> a -> Hak ()
 inc = flip change (+1)
@@ -108,3 +90,45 @@ result = do
   digits <- L.get counterDigits <$> ask
   let fmt = "%0" ++ show digits ++ "X"
   return . File $ pref ++ printf fmt c ++ "." ++ suff
+
+
+
+cmd = Cmd
+        (executable "/bin/echo")
+        [Param (TextArg (pack "hello"))
+        , Param (FileInArg (File "world"))
+        , Param (FileOutArg (File "universe"))]
+        S.empty
+
+
+instance Eval Hak Command where
+    eval cmd = do res <- result
+                  let ins = (filesin $ exec cmd) `S.union` (filesin $ params cmd) `S.union` depends cmd
+                      outs = filesout $ params cmd
+                  return Rule { outputs = outs
+                              , inputs = ins
+                              , mainOut = Just res
+                              , commands = S.singleton cmd }
+
+
+magmaR :: Rule -> Rule -> Hak Rule
+magmaR r1 r2 = let outs = outputs r1 `S.union` outputs r2
+                   ins  = inputs r1 `S.union` inputs r2
+                   bothMains = and . map (isJust . mainOut) $ [r1,r2]
+
+               in undefined
+                 
+
+
+
+-- data Rule = Rule { outputs :: Set File
+--                  , inputs  :: Set File
+--                  , mainOut :: Maybe File
+--                  , commands :: Set Command
+--                  } deriving (Eq, Show)
+
+
+
+
+
+instance Magma Hak Rule where magma = magmaR
