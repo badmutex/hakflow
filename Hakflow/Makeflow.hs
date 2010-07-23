@@ -38,7 +38,7 @@ import Prelude hiding (foldl,foldr,foldl1,foldr1)
 data Rule = Rule { outputs :: Set File
                  , inputs  :: Set File
                  , mainOut :: Maybe File
-                 , commands :: Set Command
+                 , commands :: Vector Command
                  } deriving (Eq, Show)
 
 newtype Executable = Exe {exeFile :: File} deriving (Eq, Ord, Show)
@@ -48,7 +48,6 @@ executable = Exe . File
 data Command = Cmd { exec :: Executable
                    , params :: [Parameter]
                    , depends :: Set File
-                   , redirect :: Redirection
                    } deriving (Eq, Ord, Show)
 
 
@@ -146,6 +145,6 @@ instance Emerge Rule where
                    main = if isJust (mainOut  r)
                           then T.pack . path . fromJust $ mainOut r
                           else T.empty
-                   cmds = foldl' (\cs c -> cs `T.append` c `T.append` pack ";" ) T.empty $ S.map emergeCommand (commands r)
+                   cmds = V.foldl' (\cs c -> cs `T.append` c `T.append` pack ";" ) T.empty $ V.map emergeCommand (commands r)
                in outs`T.append` pack ": " `T.append` ins `T.append` pack "\n\t" `T.append` cmds
 

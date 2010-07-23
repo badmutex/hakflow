@@ -108,27 +108,4 @@ instance Eval Hak Command where
                   return Rule { outputs = outs
                               , inputs = ins
                               , mainOut = Just res
-                              , commands = S.singleton cmd }
-
-
-magmaR :: Rule -> Rule -> Hak Rule
-magmaR r1 r2 = let outs = outputs r1 `S.union` outputs r2
-                   ins  = inputs r1 `S.union` inputs r2
-                   bothMains = and . map (isJust . mainOut) $ [r1,r2]
-
-               in undefined
-                 
-
-
-
--- data Rule = Rule { outputs :: Set File
---                  , inputs  :: Set File
---                  , mainOut :: Maybe File
---                  , commands :: Set Command
---                  } deriving (Eq, Show)
-
-
-
-
-
-instance Magma Hak Rule where magma = magmaR
+                              , commands = V.singleton cmd }

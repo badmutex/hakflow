@@ -4,7 +4,7 @@
   PackageImports
   #-}
 
-module Hakflow.Commands where
+module Hakflow.Commands.Cat where
 
 import Hakflow.Makeflow
 import Hakflow.Monad
@@ -33,11 +33,9 @@ cat cfg opts = do
   out <- result
   let exe = Exe $ catLocation cfg
       ps  = opts
-      r   = Redir StdOut Write out
   return $ Cmd { exec = exe
                , params = ps
-               , depends = S.empty
-               , redirect = r }
+               , depends = S.empty }
 
 
 cmd' = let files = map (Param . FileOutArg . File) ["foo","bar"]
