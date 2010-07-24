@@ -1,7 +1,8 @@
 {-# LANGUAGE
   MultiParamTypeClasses,
   NoImplicitPrelude,
-  NoMonomorphismRestriction
+  NoMonomorphismRestriction,
+  TypeFamilies
   #-}
 
 module Hakflow.Magma where
@@ -24,24 +25,33 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 
-class Functor f => Magma f a where magma :: a -> a -> f a
+class Functor f => Magma f a where
+    type Seq :: * -> *
+    magma :: a -> a -> f a
+    mcat :: Seq a -> f a
 
-magcat x xs = foldM magma x xs
-magcat1 xs = foldM magma (head xs) (tail xs)
+
+instance Magma Hak Rule where
+    type Seq = []
+    magma = magmaR
+    mcat = mcatR
 
 
+magmaR r1 r2 = mcatR [r1, r2]
+{-# INLINE magmaR #-}
 
-instance Magma Hak Rule where magma = magmaR
+mcatR rules = let files f = foldl' (\os r -> os `S.union` f r) S.empty rules
+                  outs = files outputs
+                  ins  = files inputs
+                  mains = map fromJust . filter isJust . map mainOut $ rules
+              in do r <- eval =<< cat def (map (Param . FileInArg) mains)
+                    return Rule { outputs = outs `S.union` outputs r
+                                , inputs = ins
+                                , mainOut = mainOut r
+                                , commands = (foldl' (V.++) V.empty $ map commands rules) V.++ commands r }
+{-# INLINE mcatR #-}
 
-magmaR r1 r2 = let outs = outputs r1 `S.union` outputs r2
-                   ins  = inputs r1 `S.union` inputs r2
-                   mains = map fromJust . filter isJust . map mainOut $ [r1,r2]
-               in do r3 <- eval =<< cat def (map (Param . FileInArg) mains)
-                     return Rule { outputs = outs `S.union` outputs r3
-                                 , inputs = ins
-                                 , mainOut = mainOut r3
-                                 , commands = commands r1 V.++ commands r2 V.++ commands r3
-                                 }
+
 
 test = let progs = do
              let c1 = Cmd { exec = executable "foo"
@@ -56,5 +66,5 @@ test = let progs = do
              rs <- mapM eval [c1,c2,c3]
              r3 <- foldlM magma (head rs) (tail rs)
              return r3
-       in do (r,_,_) <- run progs def def
+       in do (r,_,_) <- run progs def {_counterDigits=2} def
              T.putStrLn . emerge $ r
