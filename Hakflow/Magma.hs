@@ -1,5 +1,6 @@
 {-# LANGUAGE
   MultiParamTypeClasses,
+  NoImplicitPrelude,
   NoMonomorphismRestriction
   #-}
 
@@ -16,8 +17,7 @@ import qualified Data.Set as S
 import qualified Data.Vector as V
 import Data.Maybe
 import Data.Default
-import Data.Foldable
-import Prelude hiding (foldl,foldl1,foldr,foldr1,mapM_)
+import Prelude.Plus
 
 -- debugging
 import qualified Data.Text as T
@@ -25,6 +25,9 @@ import qualified Data.Text.IO as T
 
 
 class Functor f => Magma f a where magma :: a -> a -> f a
+
+magcat x xs = foldM magma x xs
+magcat1 xs = foldM magma (head xs) (tail xs)
 
 
 
@@ -53,4 +56,5 @@ test = let progs = do
              rs <- mapM eval [c1,c2,c3]
              r3 <- foldlM magma (head rs) (tail rs)
              return r3
-       in progs
+       in do (r,_,_) <- run progs def def
+             T.putStrLn . emerge $ r

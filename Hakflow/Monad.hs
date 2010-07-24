@@ -2,6 +2,7 @@
   FlexibleInstances,
   GeneralizedNewtypeDeriving,
   MultiParamTypeClasses,
+  NoImplicitPrelude,
   NoMonomorphismRestriction,
   PackageImports,
   TemplateHaskell,
@@ -31,6 +32,7 @@ import Text.Printf
 import "monads-fd" Control.Monad.Identity
 import Data.Set (Set)
 import qualified Data.Set as S
+import Prelude.Plus
 
 -- for testing
 import Debug.Trace

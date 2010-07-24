@@ -11,7 +11,8 @@
   TypeOperators,
   TypeSynonymInstances,
   UndecidableInstances,
-  NoMonomorphismRestriction
+  NoMonomorphismRestriction,
+  NoImplicitPrelude
   #-}
 
 module Hakflow.Makeflow where
@@ -31,9 +32,7 @@ import Data.Maybe
 import "monads-fd" Control.Monad.Identity
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Foldable
-
-import Prelude hiding (foldl,foldr,foldl1,foldr1)
+import Prelude.Plus
 
 data Rule = Rule { outputs :: Set File
                  , inputs  :: Set File
