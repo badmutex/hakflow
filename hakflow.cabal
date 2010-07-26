@@ -12,9 +12,14 @@ cabal-version:       >= 1.6
 
 
 Library
-  build-depends:       base
-  exposed-modules:     Makeflow.Monad,
-                       Makeflow.Commands,
-                       Makeflow.Workfow,
-                       Makeflow.Util
+  build-depends:       base, prelude-plus, vector, text, containers, data-default, fclabels, monads-fd
+  exposed-modules:     Hakflow.Abstraction,
+                       Hakflow.Abstraction.Map,
+                       Hakflow.Commands.Cat,
+                       Hakflow.Magma,
+                       Hakflow.Makeflow,
+                       Hakflow.Monad,
+                       Hakflow.Util
+
   ghc-options:
+  Extensions: NoImplicitPrelude

@@ -1,13 +1,10 @@
 {-# LANGUAGE
-  FlexibleInstances,
   GeneralizedNewtypeDeriving,
   MultiParamTypeClasses,
   NoImplicitPrelude,
-  NoMonomorphismRestriction,
   PackageImports,
   TemplateHaskell,
-  TypeOperators,
-  TypeSynonymInstances
+  TypeOperators
   #-}
 
 module Hakflow.Monad where
@@ -19,23 +16,12 @@ import Data.Maybe
 import "monads-fd" Control.Monad.RWS.Strict as RWS
 import qualified Data.Vector as V
 import Data.Text (Text,pack)
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import System.Random.Mersenne (MTGen)
-import qualified System.Random.Mersenne as Rand
 import Data.Record.Label as L
-import Control.Applicative ((<$>))
 import Data.Default
-import Data.Word
-import System.IO.Unsafe
 import Text.Printf
-import "monads-fd" Control.Monad.Identity
-import Data.Set (Set)
 import qualified Data.Set as S
 import Prelude.Plus
 
--- for testing
-import Debug.Trace
 
 
 newtype Log = Log {unLog :: V.Vector String} deriving Show
@@ -92,15 +78,6 @@ result = do
   digits <- L.get counterDigits <$> ask
   let fmt = "%0" ++ show digits ++ "X"
   return . File $ pref ++ printf fmt c ++ "." ++ suff
-
-
-
-cmd = Cmd
-        (executable "/bin/echo")
-        [Param (TextArg (pack "hello"))
-        , Param (FileInArg (File "world"))
-        , Param (FileOutArg (File "universe"))]
-        S.empty
 
 
 instance Eval Hak Command where
