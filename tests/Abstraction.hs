@@ -1,6 +1,8 @@
+{-# LANGUAGE
+  NoImplicitPrelude
+  #-}
 
-import Hakflow.Abstraction
-
+import qualified Hakflow.Abstraction as A
 import Hakflow.Makeflow
 import Hakflow.Monad
 import Hakflow.Util
@@ -26,6 +28,6 @@ testMap s = let prog = do let c1 = Cmd { exec = executable "/bin/echo"
                                        , depends = S.empty
                                        , redirection = Nothing
                                        }
-                          mapA def {chunksize = s} c1 (map (Param . TextArg . T.pack . (++) "test" . show)  [1..100000])
+                          A.map def {A.chunksize = s} c1 (map (Param . TextArg . T.pack . (++) "test" . show)  [1..10])
           in do (r,_,_) <- run prog def def
-                T.writeFile "/tmp/testMF/Makeflow" $ V.foldl' (\t1 t2 -> t1 `T.append` T.pack "\n" `T.append` t2) T.empty $ V.map emerge r
+                T.putStrLn . emerge $ r
