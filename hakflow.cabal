@@ -16,6 +16,7 @@ Library
   exposed-modules:     Hakflow.Abstraction,
                        Hakflow.Abstraction.Map,
                        Hakflow.Commands.Cat,
+                       Hakflow.Instances.Vector,
                        Hakflow.Magma,
                        Hakflow.Makeflow,
                        Hakflow.Monad,
