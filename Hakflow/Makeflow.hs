@@ -53,6 +53,12 @@ data Command = Cmd { exec :: Executable
 data ParamType = TextArg Text | FileInArg File | FileOutArg File deriving (Eq, Ord, Show)
 data Parameter = Param ParamType | Flagged Text ParamType deriving (Eq, Ord, Show)
 
+textArg = TextArg . pack
+fileInArg = FileInArg . File
+fileOutArg = FileOutArg . File
+param = Param
+flagged f = Flagged (pack f)
+
 data Buffer = StdOut | StdErr deriving (Eq, Ord, Show)
 data Mode = Write | Append deriving (Eq, Ord, Show)
 data Redirection = Redir Buffer Mode File
@@ -166,4 +172,9 @@ instance Emerge Rule where
                           else T.empty
                    cmds = V.foldl' (\cs c -> cs `T.append` c `T.append` pack ";" ) T.empty $ V.map emergeCommand (commands r)
                in outs`T.append` pack ": " `T.append` ins `T.append` pack "\n\t" `T.append` cmds
+
+
+
+instance Emerge Flow where
+    emerge = V.foldl' (\mf r -> mf `T.append` emerge r `T.append` pack "\n") T.empty
 
