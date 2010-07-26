@@ -2,7 +2,6 @@
   GeneralizedNewtypeDeriving,
   MultiParamTypeClasses,
   NoImplicitPrelude,
-  PackageImports,
   TemplateHaskell,
   TypeOperators
   #-}
@@ -13,7 +12,7 @@ import Hakflow.Makeflow
 import Hakflow.Util
 
 import Data.Maybe
-import "monads-fd" Control.Monad.RWS.Strict as RWS
+import  Control.Monad.RWS.Strict as RWS
 import qualified Data.Vector as V
 import Data.Text (Text,pack)
 import Data.Record.Label as L

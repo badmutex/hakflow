@@ -5,7 +5,6 @@
   GADTs,
   GeneralizedNewtypeDeriving,
   MultiParamTypeClasses,
-  PackageImports,
   TemplateHaskell,
   TypeFamilies,
   TypeOperators,
@@ -29,10 +28,10 @@ import qualified Data.Text.IO as T
 import Data.Record.Label
 import Data.Default
 import Data.Maybe
-import "monads-fd" Control.Monad.Identity
 import Data.Set (Set)
 import qualified Data.Set as S
 import Prelude.Plus
+
 
 data Rule = Rule { outputs :: Set File
                  , inputs  :: Set File
