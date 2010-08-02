@@ -9,6 +9,8 @@ import Hakflow.Monad
 import Hakflow.Util
 
 import qualified Data.Set as S
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 import Data.Default
 import Prelude.Plus
 
@@ -19,7 +21,7 @@ data CatCfg = Cat {
 
 instance Default CatCfg where def = Cat . File $ "/bin/cat"
 
-cat :: CatCfg -> [Parameter] -> Hak Command
+cat :: CatCfg -> Vector Parameter -> Hak Command
 cat cfg opts = do
   out <- result
   let exe = Exe $ catLocation cfg

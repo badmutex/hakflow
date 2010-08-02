@@ -14,3 +14,23 @@ instance Foldable Vector where
     foldr1 = V.foldr1
     foldl = V.foldl
     foldl1 = V.foldl1
+
+instance Functor Vector where
+    fmap = V.map
+
+instance Monad Vector where
+    return = V.singleton
+    (>>=) = flip V.concatMap
+
+instance Traversable Vector where
+    traverse f = V.foldr cons_f (pure V.empty)
+        where cons_f x ys = V.cons <$> f x <*> ys
+
+instance Applicative Vector where
+    pure = V.singleton
+    (<*>) = ap
+
+
+instance Alternative Vector where
+    empty = V.empty
+    (<|>) = (V.++)

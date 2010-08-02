@@ -17,6 +17,7 @@
 module Hakflow.Makeflow where
 
 import Hakflow.Util
+import Hakflow.Instances.Vector
 
 import Text.Printf
 import Data.List (intercalate,intersect,nub)
@@ -44,7 +45,7 @@ executable :: FilePath -> Executable
 executable = Exe . File
 
 data Command = Cmd { exec :: Executable
-                   , params :: [Parameter]
+                   , params :: Vector Parameter
                    , depends :: Set File
                    , redirection :: Maybe Redirection
                    } deriving (Eq, Ord, Show)
@@ -106,6 +107,10 @@ instance FilesIn [Parameter] where
     filesin = foldl' (\fs p -> fs `S.union` filesin p) S.empty
 
 
+instance FilesIn (Vector Parameter) where
+    filesin = foldl' (\fs p -> fs `S.union` filesin p) S.empty
+
+
 instance FilesOut ParamType where
     filesout (FileOutArg f) = S.singleton f
     filesout _ = S.empty
@@ -116,6 +121,10 @@ instance FilesOut Parameter where
 
 instance FilesOut [Parameter] where
     filesout = foldl (\fs p -> fs `S.union` filesout p) S.empty
+
+instance FilesOut (Vector Parameter) where
+    filesout = foldl (\fs p -> fs `S.union` filesout p) S.empty
+
 
 
 instance FilesOut Redirection where
