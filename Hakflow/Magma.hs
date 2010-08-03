@@ -1,4 +1,5 @@
 {-# LANGUAGE
+  FunctionalDependencies,
   MultiParamTypeClasses,
   NoImplicitPrelude,
   TypeFamilies
@@ -20,7 +21,7 @@ import Data.Default
 import Prelude.Plus
 
 
-class Functor f => Magma s f a where
+class Functor f => Magma s f a | f a -> s where
     magma :: a -> a -> f a
     mcat :: s a -> f a
 
@@ -46,5 +47,6 @@ mcatR rules =
           return Rule { outputs = outs `S.union` outputs rCat
                       , inputs = ins
                       , mainOut = mainOut rCat
-                      , commands = (foldl' (V.++) V.empty $ V.map commands rules) V.++ commands rCat V.++ commands rRm }
+                      , commands = (foldl' (V.++) V.empty $ V.map commands rules) V.++ commands rCat V.++ commands rRm
+                      , local = False }
 {-# INLINE mcatR #-}

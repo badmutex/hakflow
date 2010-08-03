@@ -30,6 +30,6 @@ cat cfg opts = do
                , params = ps
                , depends = S.empty
                , redirection = Nothing }
-
+{-# INLINE cat #-}
 
 

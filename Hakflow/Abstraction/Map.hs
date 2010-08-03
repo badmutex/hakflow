@@ -22,6 +22,7 @@ import qualified Data.Vector as V
 import Prelude.Plus hiding (group, map)
 import qualified Prelude.Plus as P (map)
 import Data.Maybe
+import qualified Data.Set as S
 
 
 chunk :: Foldable f => Int -> f Rule -> Vector (Vector Rule)
@@ -31,6 +32,7 @@ chunk limit xs = foldl' pick empty xs
           | V.length rs == 0             = pure . pure $ r
           | V.length (V.last rs) < limit = V.init rs <|> pure (V.last rs `V.snoc` r)
           | otherwise                    = rs `V.snoc` pure r
+{-# INLINE chunk #-}
 
 
 data MapCfg = Map { chunksize :: Int
@@ -42,25 +44,23 @@ map :: Traversable t => MapCfg -> Command -> t Parameter -> Hak Flow
 map cfg c ps = do
   rules <- mapM (addRule c) ps
   let chunks = chunk (chunksize cfg) rules
-  mapM mcat chunks
-
-
-clean :: Vector Rule -> Hak Rule
-clean rs = do
-  let mains = V.map (param . FileInArg . fromJust) . V.filter isJust $ V.map mainOut rs
-  r <- eval =<< cat def mains
-  rm def mains
-  return r
-
-
-
-mapA cfg c ps = do
-  rules <- mapM (addRule c) ps
-  let chunks = chunk (chunksize cfg) rules
   rules' <- mapM mcat chunks
   let chunks' = chunk (groupsize cfg) rules'
   rules'' <- mapM clean chunks'
   return $ rules' V.++ rules''
+
+
+clean :: Vector Rule -> Hak Rule
+clean rs = do
+  let mains = V.map fromJust . V.filter isJust . V.map mainOut $ rs
+  [rCat, rRm] <- mapM (\cmd -> cmd (V.map (param . FileInArg) mains) >>= eval) [cat def, rm def]
+  return Rule { outputs = S.empty
+              , inputs = S.fromList . V.toList $ mains
+              , mainOut = mainOut rCat
+              , commands = commands rCat V.++ commands rRm
+              , local = True
+              }
+{-# INLINE clean #-}
 
 
 

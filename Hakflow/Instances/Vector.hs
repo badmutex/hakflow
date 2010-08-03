@@ -8,6 +8,7 @@ import Prelude.Plus
 
 import Data.Vector (Vector)
 import qualified Data.Vector as V
+import Control.DeepSeq
 
 instance Foldable Vector where
     foldr = V.foldr
@@ -34,3 +35,6 @@ instance Applicative Vector where
 instance Alternative Vector where
     empty = V.empty
     (<|>) = (V.++)
+
+instance NFData a => NFData (Vector a) where
+    rnf v = V.map rnf v `deepseq` ()

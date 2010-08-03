@@ -13,10 +13,12 @@ import Hakflow.Makeflow
 import Hakflow.Util
 
 import Data.Maybe
-import  Control.Monad.RWS.Strict as RWS
+import Control.Monad.RWS.Strict (RWST,MonadWriter,MonadReader,MonadState,MonadIO, put, ask)
+import qualified Control.Monad.RWS.Strict as RWS
 import qualified Data.Vector as V
 import Data.Text (Text,pack)
-import qualified Data.Text.IO as T (writeFile)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Data.Record.Label as L
 import Data.Default
 import Text.Printf
@@ -90,11 +92,15 @@ instance Eval Hak Command where
                   return Rule { outputs = outs
                               , inputs = ins
                               , mainOut = Just $ redirectionFile res
-                              , commands = V.singleton cmd {redirection=Just res} }
+                              , commands = V.singleton cmd {redirection=Just res}
+                              , local = False }
 
 
 writeFlow :: Flow -> FilePath -> IO ()
-writeFlow f p = T.writeFile p . emerge $ f
+writeFlow f p = do
+  T.writeFile p (pack "")
+  V.mapM_ (T.appendFile p . flip T.snoc '\n' . emerge) f
+
 
 
 go :: IO (Flow, HakState, Log) -> FilePath -> IO ()

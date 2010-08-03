@@ -32,12 +32,14 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Prelude.Plus
+import Control.DeepSeq
 
 
 data Rule = Rule { outputs :: Set File
                  , inputs  :: Set File
                  , mainOut :: Maybe File
                  , commands :: Vector Command
+                 , local    :: Bool
                  } deriving (Eq, Show)
 
 newtype Executable = Exe {exeFile :: File} deriving (Eq, Ord, Show)
@@ -69,6 +71,8 @@ data Redirection = Redir Buffer Mode File
 redirectionFile :: Redirection -> File
 redirectionFile (Redir _ _ f) = f
 redirectionFile (Combine _ f) = f
+redirectionFile Out = File ""
+
 
 
 
@@ -142,6 +146,39 @@ instance FilesOut Command where
 
 
 
+instance NFData Executable where
+    rnf e = exeFile e `deepseq` ()
+
+instance NFData ParamType where
+    rnf (TextArg t)    = t `deepseq` ()
+    rnf (FileInArg f)  = f `deepseq` ()
+    rnf (FileOutArg f) = f `deepseq` ()
+
+instance NFData Parameter where
+    rnf (Param t)     = t `deepseq` ()
+    rnf (Flagged f t) = f `deepseq` t `deepseq` ()
+
+instance NFData Redirection where
+    rnf (Redir b m f) = b `deepseq` m `deepseq` f `deepseq` ()
+    rnf (Combine m f) = m `deepseq` f `deepseq` ()
+    rnf Out = ()
+
+instance NFData Buffer where
+    rnf StdOut = ()
+    rnf StdErr = ()
+
+instance NFData Mode where
+    rnf Write = ()
+    rnf Append = ()
+
+instance NFData Command where
+    rnf c = exec c `deepseq` params c `deepseq` depends c `deepseq` redirection c `deepseq` ()
+
+instance NFData Rule where
+    rnf r = outputs r `deepseq` inputs r `deepseq` mainOut r `deepseq` commands r `deepseq` ()
+
+
+
 emergeExecutable (Exe f) = pack . path $ f
 
 emergeParamType (TextArg t) = t
@@ -180,10 +217,5 @@ instance Emerge Rule where
                           then T.pack . path . fromJust $ mainOut r
                           else T.empty
                    cmds = V.foldl' (\cs c -> cs `T.append` c `T.append` pack ";" ) T.empty $ V.map emergeCommand (commands r)
-               in outs`T.append` pack ": " `T.append` ins `T.append` pack "\n\t" `T.append` cmds
-
-
-
-instance Emerge Flow where
-    emerge = V.foldl' (\mf r -> mf `T.append` emerge r `T.append` pack "\n") T.empty
-
+                   runlocal = pack $ if local r then "LOCAL " else ""
+               in outs`T.append` pack ": " `T.append` ins `T.append` pack "\n\t" `T.append` runlocal `T.append` cmds `T.snoc` '\n'
