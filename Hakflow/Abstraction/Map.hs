@@ -45,9 +45,16 @@ map cfg c ps = do
   rules <- mapM (addRule c) ps
   let chunks = chunk (chunksize cfg) rules
   rules' <- mapM mcat chunks
-  let chunks' = chunk (groupsize cfg) rules'
-  rules'' <- mapM clean chunks'
-  return $ rules' V.++ rules''
+  flow <- group rules' (groupsize cfg)
+  r <- mcat flow
+  return $ pure r
+
+
+group :: Vector Rule -> Int -> Hak Flow
+group rules size = do
+  let chunks = chunk size rules
+  rules' <- mapM clean chunks
+  return $ rules V.++ rules'
 
 
 clean :: Vector Rule -> Hak Rule
