@@ -36,7 +36,7 @@ instance Monoid Log where
 
 newtype Hak a = Hak {
       runHak :: RWST MakeflowOpts Log HakState IO a
-    } deriving (Functor, Monad, MonadWriter Log, MonadReader MakeflowOpts, MonadState HakState, MonadIO)
+    } deriving (Applicative, Functor, Monad, MonadWriter Log, MonadReader MakeflowOpts, MonadState HakState, MonadIO)
 
 run = RWS.runRWST . runHak
 
@@ -83,6 +83,24 @@ result = do
   return . File $ pref ++ printf fmt c ++ "." ++ suff
 
 
+saveFlow :: Flow -> Hak ()
+saveFlow f = RWS.modify (L.set workflow f)
+
+addFlow :: Flow -> Hak ()
+addFlow f = do
+  wf <- L.get workflow <$> RWS.get
+  let f' = f V.++ wf
+  saveFlow f'
+
+withPrefix :: String -> Hak a -> Hak a
+withPrefix prefix action = do
+  current <- L.get resultPrefix <$> RWS.get
+  RWS.modify (L.set resultPrefix prefix)
+  res <- action
+  RWS.modify (L.set resultPrefix current)
+  return res
+
+
 instance Eval Hak Command where
     eval cmd = do let ins = (filesin $ exec cmd) `S.union` (filesin $ params cmd) `S.union` depends cmd
                       outs = filesout $ params cmd
@@ -103,6 +121,6 @@ writeFlow f p = do
 
 
 
-go :: IO (Flow, HakState, Log) -> FilePath -> IO ()
-go m p = do (f, _, _) <- m
-            writeFlow f p
+go :: IO (a, HakState, Log) -> FilePath -> IO ()
+go m p = do (_, s, _) <- m
+            writeFlow (L.get workflow s) p
