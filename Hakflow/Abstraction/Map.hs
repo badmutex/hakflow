@@ -40,21 +40,27 @@ data MapCfg = Map { chunksize :: Int
 
 instance Default MapCfg where def = Map {chunksize = 1, groupsize = 16}
 
-map :: Traversable t => MapCfg -> Command -> t Parameter -> Hak Flow
+map :: Traversable t => MapCfg -> Command -> t Parameter -> Hak File
 map cfg c ps = do
   rules <- mapM (addRule c) ps
   let chunks = chunk (chunksize cfg) rules
+
   rules' <- mapM mcat chunks
-  flow <- group rules' (groupsize cfg)
-  r <- mcat flow
-  return $ pure r
+  addFlow rules'
 
+  groups <- group rules' (groupsize cfg)
+  addFlow groups
 
-group :: Vector Rule -> Int -> Hak Flow
+  res    <- withPrefix "map_" (clean groups)
+  addFlow $ pure res
+
+  return . fromJust $ mainOut res
+
+group :: Flow -> Int -> Hak Flow
 group rules size = do
   let chunks = chunk size rules
   rules' <- mapM clean chunks
-  return $ rules V.++ rules'
+  return rules'
 
 
 clean :: Vector Rule -> Hak Rule
