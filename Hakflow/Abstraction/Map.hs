@@ -39,10 +39,12 @@ chunk limit xs = foldl' pick empty xs
 {-# INLINE chunk #-}
 
 
-data MapCfg = Map { chunksize :: Int
-                  , groupsize :: Int}
+data MapCfg = Map { chunksize    :: Int
+                  , groupsize    :: Int
+                  , outputPrefix :: String
+                  }
 
-instance Default MapCfg where def = Map {chunksize = 1, groupsize = 16}
+instance Default MapCfg where def = Map {chunksize = 1, groupsize = 16, outputPrefix = "map"}
 
 map :: (Traversable t, Traversable t') => MapCfg -> Command -> t (t' Parameter) -> Hak File
 map cfg c ps = do
@@ -57,7 +59,7 @@ map cfg c ps = do
   groups <- group rules' (groupsize cfg)
   addFlow groups
 
-  res    <- withPrefix "map_" (clean groups)
+  res    <- withPrefix' (outputPrefix cfg) (clean groups)
   addFlow $ pure res
 
   return . fromJust $ mainOut res

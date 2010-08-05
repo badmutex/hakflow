@@ -59,7 +59,7 @@ instance Default HakState where
     def = HS {
             _counter = 0
           , _workflow = V.empty
-          , _resultPrefix = "result_"
+          , _resultPrefix = "result"
           , _resultSuffix = "txt"
           }
 
@@ -80,7 +80,7 @@ result = do
   inc counter
   digits <- L.get counterDigits <$> ask
   let fmt = "%0" ++ show digits ++ "X"
-  return . File $ pref ++ printf fmt c ++ "." ++ suff
+  return . File $ pref ++ "." ++ printf fmt c ++ "." ++ suff
 
 
 saveFlow :: Flow -> Hak ()
@@ -92,13 +92,24 @@ addFlow f = do
   let f' = f V.++ wf
   saveFlow f'
 
-withPrefix :: String -> Hak a -> Hak a
-withPrefix prefix action = do
-  current <- L.get resultPrefix <$> RWS.get
-  RWS.modify (L.set resultPrefix prefix)
-  res <- action
-  RWS.modify (L.set resultPrefix current)
+withPrefix :: String -> (Hak a -> Hak b) -> Hak a -> Hak b
+withPrefix = withState resultPrefix
+withPrefix' :: String -> Hak a -> Hak a
+withPrefix' = flip withPrefix id
+
+withSuffix :: String -> (Hak a -> Hak b) -> Hak a -> Hak b
+withSuffix = withState resultSuffix
+withSuffix' :: String -> Hak a -> Hak a
+withSuffix' = flip withSuffix id
+
+withState :: HakState :-> a -> a -> (Hak b -> Hak c) -> Hak b -> Hak c
+withState name val next action = do
+  current <- L.get name <$> RWS.get
+  RWS.modify (L.set name val)
+  res <- next action
+  RWS.modify (L.set name current)
   return res
+
 
 
 instance Eval Hak Command where
