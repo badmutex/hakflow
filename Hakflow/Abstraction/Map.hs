@@ -40,7 +40,7 @@ data MapCfg = Map { chunksize :: Int
 
 instance Default MapCfg where def = Map {chunksize = 1, groupsize = 16}
 
-map :: Traversable t => MapCfg -> Command -> t Parameter -> Hak File
+map :: (Traversable t, Traversable t') => MapCfg -> Command -> t (t' Parameter) -> Hak File
 map cfg c ps = do
   rules <- mapM (addRule c) ps
   let chunks = chunk (chunksize cfg) rules
@@ -77,5 +77,9 @@ clean rs = do
 
 
 
-addRule :: Command -> Parameter -> Hak Rule
-addRule c p = eval c {params = params c `V.snoc` p}
+newRule :: Command -> Parameter -> Command
+newRule c p = c {params = params c `V.snoc` p}
+
+
+addRule :: Traversable t => Command -> t Parameter -> Hak Rule
+addRule c ps = eval $ foldl' newRule c ps
