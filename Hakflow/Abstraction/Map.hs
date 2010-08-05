@@ -24,6 +24,10 @@ import qualified Prelude.Plus as P (map)
 import Data.Maybe
 import qualified Data.Set as S
 
+import Control.Monad.ST
+import Data.STRef
+
+
 
 chunk :: Foldable f => Int -> f Rule -> Vector (Vector Rule)
 chunk limit xs = foldl' pick empty xs
@@ -43,9 +47,11 @@ instance Default MapCfg where def = Map {chunksize = 1, groupsize = 16}
 map :: (Traversable t, Traversable t') => MapCfg -> Command -> t (t' Parameter) -> Hak File
 map cfg c ps = do
   rules <- mapM (addRule c) ps
-  let chunks = chunk (chunksize cfg) rules
 
-  rules' <- mapM mcat chunks
+  rules' <- if chunksize cfg > 1
+            then let chunks = chunk (chunksize cfg) rules in mapM mcat chunks
+            else return $ foldr' V.cons empty rules
+
   addFlow rules'
 
   groups <- group rules' (groupsize cfg)
