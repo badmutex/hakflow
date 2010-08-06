@@ -57,7 +57,7 @@ data Command = Cmd { exec :: Executable
 shell = Shell . pack
 
 
-data ParamType = TextArg Text | FileInArg File | FileOutArg File deriving (Eq, Ord, Show)
+data ParamType = TextArg Text | FileInArg File | FileOutArg File | NoArg deriving (Eq, Ord, Show)
 data Parameter = Param ParamType | Flagged Text ParamType deriving (Eq, Ord, Show)
 
 textArg = TextArg . pack
@@ -159,6 +159,7 @@ instance NFData ParamType where
     rnf (TextArg t)    = t `deepseq` ()
     rnf (FileInArg f)  = f `deepseq` ()
     rnf (FileOutArg f) = f `deepseq` ()
+    rnf NoArg          = ()
 
 instance NFData Parameter where
     rnf (Param t)     = t `deepseq` ()
@@ -191,6 +192,7 @@ emergeExecutable (Exe f) = pack . path $ f
 emergeParamType (TextArg t) = t
 emergeParamType (FileInArg f) = pack . path $ f
 emergeParamType (FileOutArg f) = pack . path $ f
+emergeParamType _ = pack ""
 
 emergeParameter (Param pt) = emergeParamType pt
 emergeParameter (Flagged t pt) = t `T.append` pack " " `T.append` emergeParamType pt
