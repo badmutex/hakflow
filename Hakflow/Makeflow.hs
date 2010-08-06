@@ -50,7 +50,11 @@ data Command = Cmd { exec :: Executable
                    , params :: Vector Parameter
                    , depends :: Set File
                    , redirection :: Maybe Redirection
-                   } deriving (Eq, Ord, Show)
+                   }
+             | Shell Text
+               deriving (Eq, Ord, Show)
+
+shell = Shell . pack
 
 
 data ParamType = TextArg Text | FileInArg File | FileOutArg File deriving (Eq, Ord, Show)
@@ -137,12 +141,14 @@ instance FilesOut Redirection where
 
 
 instance FilesIn Command where
+    filesin (Shell _) = S.empty
     filesin c = S.singleton (exeFile . exec $ c) `S.union`
                 filesin (params c)               `S.union`
                 depends c
 
 instance FilesOut Command where
-    filesout = filesout . params
+    filesout (Shell _) = S.empty
+    filesout c = filesout . params $ c
 
 
 
@@ -172,6 +178,7 @@ instance NFData Mode where
     rnf Append = ()
 
 instance NFData Command where
+    rnf (Shell s) = s `deepseq` ()
     rnf c = exec c `deepseq` params c `deepseq` depends c `deepseq` redirection c `deepseq` ()
 
 instance NFData Rule where
@@ -188,6 +195,7 @@ emergeParamType (FileOutArg f) = pack . path $ f
 emergeParameter (Param pt) = emergeParamType pt
 emergeParameter (Flagged t pt) = t `T.append` pack " " `T.append` emergeParamType pt
 
+emergeCommand (Shell s) = s
 emergeCommand c = let exe = emergeExecutable . exec $ c
                       ps  = foldl' (\t p -> t `T.append` pack " " `T.append` emergeParameter p) T.empty (params c)
                       r   = emergeRedirection $ fromMaybe Out (redirection c)

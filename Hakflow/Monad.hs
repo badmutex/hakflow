@@ -113,6 +113,14 @@ withState name val next action = do
 
 
 instance Eval Hak Command where
+    eval cmd@(Shell s) = do
+      r <- result
+      return Rule { outputs = S.empty
+                  , inputs = S.empty
+                  , mainOut = Just r
+                  , commands = V.singleton cmd
+                  , local = True }
+
     eval cmd = do let ins = (filesin $ exec cmd) `S.union` (filesin $ params cmd) `S.union` depends cmd
                       outs = filesout $ params cmd
                   res <- if isJust (redirection cmd)
