@@ -83,7 +83,7 @@ redirectionFile Out = File ""
 
 data MakeflowOpts = MFOpts {
       _counterDigits :: !Int
-    }
+    } deriving (Read, Show)
 
 $(mkLabels [''MakeflowOpts])
 counterDigits :: MakeflowOpts :-> Int
