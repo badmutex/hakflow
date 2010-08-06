@@ -1,13 +1,13 @@
 module Hakflow.Util where
 
 import qualified Data.Text as T
-import Prelude.Plus (Eq, Ord, Show, FilePath)
+import Prelude.Plus
 import Control.DeepSeq
 
 
 newtype Tagged v t = Tag {unTag :: v}
 
-newtype File = File {path :: FilePath} deriving (Eq, Ord, Show)
+newtype File = File {path :: FilePath} deriving (Eq, Ord, Read, Show)
 
 
 instance NFData v => NFData (Tagged v t) where
