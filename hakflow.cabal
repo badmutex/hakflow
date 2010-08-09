@@ -17,6 +17,7 @@ Library
                        Hakflow.Abstraction.Map,
                        Hakflow.Commands.Cat,
                        Hakflow.Commands.Rm,
+                       Hakflow.Commands.Mv,
                        Hakflow.Instances.Vector,
                        Hakflow.Magma,
                        Hakflow.Makeflow,
