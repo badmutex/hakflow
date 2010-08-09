@@ -125,7 +125,7 @@ instance Eval Hak Command where
                       outs = filesout $ params cmd
                   res <- if isJust (redirection cmd)
                          then return . fromJust . redirection $ cmd
-                         else (Redir StdOut Write) <$> result
+                         else (Combine Write) <$> result
                   return Rule { outputs = outs
                               , inputs = ins
                               , mainOut = Just $ redirectionFile res
